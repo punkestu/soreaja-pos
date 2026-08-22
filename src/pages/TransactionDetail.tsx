@@ -282,6 +282,11 @@ export function TransactionDetail() {
             <p className="text-sm text-stone-800"><span className="font-medium text-stone-500">Start (Give):</span> {tx.give_method === 'antar' ? 'Antar (Delivery)' : 'Self Pickup'}</p>
             <p className="text-sm text-stone-800 mt-1"><span className="font-medium text-stone-500">Return (Take):</span> {tx.take_method === 'antar' ? 'Jemput (Pickup)' : 'Self Drop-off'}</p>
           </div>
+          <div className="col-span-full">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400 mb-1">Rental Periods</h3>
+            <p className="text-sm text-stone-800"><span className="font-medium text-stone-500">From:</span> {tx.start_date.toLocaleString()}</p>
+            <p className="text-sm text-stone-800 mt-1"><span className="font-medium text-stone-500">To:</span> {tx.end_date.toLocaleString()}</p>
+          </div>
         </div>
       </div>
 
