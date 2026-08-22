@@ -1,4 +1,5 @@
-import { useState } from 'react';
+with open('src/components/SyncFAB.tsx', 'w') as f:
+    f.write("""import { useState } from 'react';
 import { Save, RefreshCw, X, FolderSync, Plus } from 'lucide-react';
 import { initAuth, googleSignIn } from '../auth';
 import { fetchBackupFolders, performSyncMerge, performSyncUp } from '../lib/sync';
@@ -173,3 +174,4 @@ export function SyncFAB() {
     </>
   );
 }
+""")
