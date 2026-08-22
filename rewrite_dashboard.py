@@ -1,14 +1,17 @@
-import React, { useState, useMemo } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
+import re
+
+with open('src/pages/Dashboard.tsx', 'r') as f:
+    content = f.read()
+
+# I will just write a new Dashboard.tsx
+new_content = """import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
-import { format, isToday, startOfMonth, subDays, subMonths, startOfYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, isSameDay, isSameWeek, isSameMonth } from 'date-fns';
+import { format, isToday, startOfMonth, subDays, eachDayOfInterval, isSameDay } from 'date-fns';
 import { ArrowUpRight, ArrowDownRight, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
 
 export function Dashboard() {
-  const [timeWindow, setTimeWindow] = useState('this_month');
-
   const transactions = useLiveQuery(async () => {
     const data = await db.transactions.toArray();
     return data.sort((a, b) => {
@@ -27,94 +30,44 @@ export function Dashboard() {
   const todaysPickups = transactions?.filter(t => t.status === 'booked' && isToday(t.start_date)) || [];
   const todaysReturns = transactions?.filter(t => t.status === 'active' && isToday(t.end_date)) || [];
 
-  // Performance Data Memoization to avoid recalculating every render
-  const { periodIncome, periodExpense, cashflowData, topAssets } = useMemo(() => {
-    const now = new Date();
-    let startDate = startOfMonth(now);
-    let grouping: 'day' | 'week' | 'month' = 'day';
+  // Performance Data
+  const last7Days = eachDayOfInterval({ start: subDays(new Date(), 6), end: new Date() });
+  
+  const cashflowData = last7Days.map(date => {
+    const dayMutations = allMutations?.filter(m => isSameDay(new Date(m.timestamp), date)) || [];
+    const income = dayMutations.filter(m => m.amount > 0).reduce((sum, m) => sum + m.amount, 0);
+    const expense = Math.abs(dayMutations.filter(m => m.amount < 0).reduce((sum, m) => sum + m.amount, 0));
+    return {
+      date: format(date, 'MMM dd'),
+      income,
+      expense
+    };
+  });
 
-    switch (timeWindow) {
-      case 'this_week':
-        startDate = subDays(now, 7);
-        grouping = 'day';
-        break;
-      case 'this_month':
-        startDate = startOfMonth(now);
-        grouping = 'day';
-        break;
-      case '3_month':
-        startDate = subMonths(now, 3);
-        grouping = 'week';
-        break;
-      case '6_month':
-        startDate = subMonths(now, 6);
-        grouping = 'month';
-        break;
-      case 'this_year':
-        startDate = startOfYear(now);
-        grouping = 'month';
-        break;
-    }
+  const thisMonthMutations = allMutations?.filter(m => new Date(m.timestamp) >= startOfMonth(new Date())) || [];
+  const monthIncome = thisMonthMutations.filter(m => m.amount > 0).reduce((sum, m) => sum + m.amount, 0);
+  const monthExpense = Math.abs(thisMonthMutations.filter(m => m.amount < 0).reduce((sum, m) => sum + m.amount, 0));
 
-    const periodMutations = allMutations?.filter(m => new Date(m.timestamp) >= startDate) || [];
-    
-    const income = periodMutations.filter(m => m.amount > 0).reduce((sum, m) => sum + m.amount, 0);
-    const expense = Math.abs(periodMutations.filter(m => m.amount < 0).reduce((sum, m) => sum + m.amount, 0));
-
-    let timeSteps: Date[] = [];
-    if (grouping === 'day') timeSteps = eachDayOfInterval({ start: startDate, end: now });
-    else if (grouping === 'week') timeSteps = eachWeekOfInterval({ start: startDate, end: now });
-    else if (grouping === 'month') timeSteps = eachMonthOfInterval({ start: startDate, end: now });
-
-    const flowData = timeSteps.map(date => {
-      const stepMutations = periodMutations.filter(m => {
-        const mDate = new Date(m.timestamp);
-        if (grouping === 'day') return isSameDay(mDate, date);
-        if (grouping === 'week') return isSameWeek(mDate, date);
-        if (grouping === 'month') return isSameMonth(mDate, date);
-        return false;
-      });
-      const stepIncome = stepMutations.filter(m => m.amount > 0).reduce((sum, m) => sum + m.amount, 0);
-      const stepExpense = Math.abs(stepMutations.filter(m => m.amount < 0).reduce((sum, m) => sum + m.amount, 0));
-      
-      let label = '';
-      if (grouping === 'day') label = format(date, 'MMM dd');
-      else if (grouping === 'week') label = format(date, 'MMM dd');
-      else if (grouping === 'month') label = format(date, 'MMM yyyy');
-
-      return { date: label, income: stepIncome, expense: stepExpense };
+  // Top Assets Data
+  const assetCounts: Record<string, number> = {};
+  transactions?.filter(t => new Date(t.start_date) >= startOfMonth(new Date())).forEach(t => {
+    t.items.forEach(item => {
+      assetCounts[item.asset_id] = (assetCounts[item.asset_id] || 0) + item.qty;
     });
+  });
 
-    const assetCounts: Record<string, number> = {};
-    transactions?.filter(t => new Date(t.start_date) >= startDate).forEach(t => {
-      t.items.forEach(item => {
-        assetCounts[item.asset_id] = (assetCounts[item.asset_id] || 0) + item.qty;
-      });
+  const topAssets = Object.entries(assetCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([id, count]) => {
+      const asset = assets?.find(a => a.id === id);
+      return {
+        name: asset?.name || 'Unknown Asset',
+        value: count
+      };
     });
-
-    const top = Object.entries(assetCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([id, count]) => {
-        const asset = assets?.find(a => a.id === id);
-        return {
-          name: asset?.name || 'Unknown Asset',
-          value: count
-        };
-      });
-
-    return { periodIncome: income, periodExpense: expense, cashflowData: flowData, topAssets: top };
-  }, [timeWindow, allMutations, transactions, assets]);
 
   const COLORS = ['#f97316', '#3b82f6', '#10b981', '#f59e0b', '#6366f1'];
-
-  const windows = [
-    { id: 'this_week', label: 'This Week' },
-    { id: 'this_month', label: 'This Month' },
-    { id: '3_month', label: '3 Months' },
-    { id: '6_month', label: '6 Months' },
-    { id: 'this_year', label: 'This Year' },
-  ];
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8 pb-24 md:pb-10">
@@ -140,22 +93,11 @@ export function Dashboard() {
 
       {/* Performance Dashboard */}
       <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
-        <div className="p-4 sm:p-6 border-b border-stone-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+        <div className="p-4 sm:p-6 border-b border-stone-100 flex items-center justify-between">
           <h2 className="font-semibold text-lg text-stone-900 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-orange-600" />
             Performance Dashboard
           </h2>
-          <div className="flex gap-2 overflow-x-auto pb-2 xl:pb-0 scrollbar-hide">
-            {windows.map(w => (
-              <button
-                key={w.id}
-                onClick={() => setTimeWindow(w.id)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${timeWindow === w.id ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
-              >
-                {w.label}
-              </button>
-            ))}
-          </div>
         </div>
         
         <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -163,17 +105,17 @@ export function Dashboard() {
           <div className="lg:col-span-2 space-y-6">
             <div className="flex flex-wrap gap-4 sm:gap-8">
               <div>
-                <p className="text-sm font-medium text-stone-500">Period Inflow</p>
-                <p className="text-2xl font-bold font-mono text-emerald-600">Rp {periodIncome.toLocaleString()}</p>
+                <p className="text-sm font-medium text-stone-500">This Month's Inflow</p>
+                <p className="text-2xl font-bold font-mono text-emerald-600">Rp {monthIncome.toLocaleString()}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-stone-500">Period Outflow</p>
-                <p className="text-2xl font-bold font-mono text-red-600">Rp {periodExpense.toLocaleString()}</p>
+                <p className="text-sm font-medium text-stone-500">This Month's Outflow</p>
+                <p className="text-2xl font-bold font-mono text-red-600">Rp {monthExpense.toLocaleString()}</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-stone-500">Net Flow</p>
-                <p className={`text-2xl font-bold font-mono ${(periodIncome - periodExpense) >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                  Rp {(periodIncome - periodExpense).toLocaleString()}
+                <p className={`text-2xl font-bold font-mono ${(monthIncome - monthExpense) >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                  Rp {(monthIncome - monthExpense).toLocaleString()}
                 </p>
               </div>
             </div>
@@ -196,7 +138,7 @@ export function Dashboard() {
           </div>
 
           <div>
-            <h3 className="text-sm font-medium text-stone-500 mb-4">Top Assets (Period)</h3>
+            <h3 className="text-sm font-medium text-stone-500 mb-4">Top Assets (This Month)</h3>
             {topAssets.length > 0 ? (
               <div className="flex flex-col items-center">
                 <div className="h-[180px] w-full mb-4">
@@ -232,7 +174,7 @@ export function Dashboard() {
                 </ul>
               </div>
             ) : (
-              <p className="text-stone-500 text-sm text-center py-10">No rentals recorded in this period.</p>
+              <p className="text-stone-500 text-sm text-center py-10">No rentals recorded this month.</p>
             )}
           </div>
 
@@ -302,3 +244,8 @@ export function Dashboard() {
     </div>
   );
 }
+"""
+
+with open('src/pages/Dashboard.tsx', 'w') as f:
+    f.write(new_content)
+print("Updated Dashboard.tsx")

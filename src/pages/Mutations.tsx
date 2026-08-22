@@ -98,7 +98,7 @@ export function Mutations() {
 
       {isAdding && (
         <form onSubmit={handleAdd} className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 items-end">
-          <div className="sm:col-span-2 lg:col-span-3">
+          <div className="col-span-full">
             <label className="block text-sm font-medium text-stone-700 mb-1">Description</label>
             <input type="text" required value={desc} onChange={e => setDesc(e.target.value)} className="w-full border border-stone-300 rounded-xl px-4 py-2.5" placeholder="e.g. Bought SD Card" />
           </div>
@@ -115,14 +115,14 @@ export function Mutations() {
               </select>
             </div>
           </div>
-          <div className="sm:col-span-2 lg:col-span-3">
+          <div className="sm:col-span-2 lg:col-span-4">
             <label className="block text-sm font-medium text-stone-700 mb-1">Source</label>
             <input type="text" list="sources-list" required value={source} onChange={e => setSource(e.target.value)} className="w-full border border-stone-300 rounded-xl px-4 py-2.5" placeholder="Customer, Investor, etc." />
             <datalist id="sources-list">
               {uniqueSources.map(s => <option key={s} value={s} />)}
             </datalist>
           </div>
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-4">
             <label className="block text-sm font-medium text-stone-700 mb-1">Type</label>
             <input type="text" list="types-list" required value={type} onChange={e => setType(e.target.value)} className="w-full border border-stone-300 rounded-xl px-4 py-2.5" placeholder="Maintenance, Rent..." />
             <datalist id="types-list">
@@ -135,7 +135,7 @@ export function Mutations() {
               ))}
             </datalist>
           </div>
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-4">
             <label className="block text-sm font-medium text-stone-700 mb-1">Location</label>
             <input type="text" list="locations-list" required value={location} onChange={e => setLocation(e.target.value)} className="w-full border border-stone-300 rounded-xl px-4 py-2.5" placeholder="Cash, BCA..." />
             <datalist id="locations-list">

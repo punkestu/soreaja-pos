@@ -1,4 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import re
+
+new_content = """import React, { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { format, isToday, startOfMonth, subDays, subMonths, startOfYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, isSameDay, isSameWeek, isSameMonth } from 'date-fns';
@@ -302,3 +304,7 @@ export function Dashboard() {
     </div>
   );
 }
+"""
+
+with open('src/pages/Dashboard.tsx', 'w') as f:
+    f.write(new_content)
