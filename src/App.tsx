@@ -12,6 +12,7 @@ import { Transactions } from './pages/Transactions';
 import { NewTransaction } from './pages/NewTransaction';
 import { TransactionDetail } from './pages/TransactionDetail';
 import { Mutations } from './pages/Mutations';
+import { Loans } from './pages/Loans';
 import { Settings } from './pages/Settings';
 
 export default function App() {
@@ -26,7 +27,8 @@ export default function App() {
           <Route path="transactions/new" element={<NewTransaction />} />
           <Route path="transactions/:id" element={<TransactionDetail />} />
           <Route path="mutations" element={<Mutations />} />
-          <Route path="settings" element={<Settings />} />
+          <Route path="loans" element={<Loans />} />
+                              <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
     </BrowserRouter>

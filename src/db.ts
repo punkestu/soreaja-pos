@@ -1,5 +1,27 @@
 import Dexie, { type EntityTable } from 'dexie';
 
+
+export interface LoanPayment {
+  id: string;
+  amount: number;
+  payer: string;
+  timestamp: Date;
+  mutation_id: string;
+}
+
+export interface Loan {
+  id: string;
+  borrower: string;
+  reason: string;
+  amount: number;
+  status: 'active' | 'paid';
+  payments: LoanPayment[];
+  wallet: string;
+  mutation_id: string;
+  timestamp: Date;
+  last_updated?: Date;
+}
+
 export interface Asset {
   id: string;
   name: string;
@@ -87,6 +109,7 @@ export const db = new Dexie('SoreAjaDatabase') as Dexie & {
   images: EntityTable<DocImage, 'id'>;
   packages: EntityTable<Package, 'id'>;
   settings: EntityTable<AppSetting, 'key'>;
+  loans: EntityTable<Loan, 'id'>;
 };
 
 db.version(1).stores({
@@ -113,7 +136,17 @@ db.version(3).stores({
   settings: 'key'
 });
 
-['assets', 'transactions', 'mutations', 'images', 'packages'].forEach(tableName => {
+db.version(4).stores({
+  assets: 'id, name, type',
+  transactions: 'id, customer_name, status, start_date, end_date',
+  mutations: 'id, type, location, reference_id, timestamp',
+  images: 'id, transaction_id',
+  packages: 'id, name',
+  settings: 'key',
+  loans: 'id, borrower, status, timestamp'
+});
+
+['assets', 'transactions', 'mutations', 'images', 'packages', 'loans'].forEach(tableName => {
   db.table(tableName).hook('creating', function (primKey, obj, transaction) {
     obj.last_updated = new Date();
   });

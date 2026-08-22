@@ -239,16 +239,18 @@ export async function performSyncUp(currentToken: string) {
   const data = {
     assets: sortStandard(await db.assets.toArray()),
     transactions: sortTransactions(await db.transactions.toArray()),
-    mutations: sortMutations(await db.mutations.toArray()),
+    mutations: sortMutations(await db.mutations.toArray()), // Needed for Spreadsheet export
     packages: sortStandard(await db.packages.toArray()),
     settings: settings,
+    loans: sortStandard(await db.loans.toArray())
   };
   
   const rootFolderId = await getOrCreateFolder(currentToken, 'SoreAja Backups');
   const backupId = `Backup - ${new Date().toLocaleString().replace(/[/:,]/g, '-')}`;
   const sessionFolderId = await getOrCreateFolder(currentToken, backupId, rootFolderId);
   
-  const jsonString = JSON.stringify(data, null, 2);
+  const dataForJson = { ...data, mutations: [] }; // Ignore database.json
+  const jsonString = JSON.stringify(dataForJson, null, 2);
   
   const metadata = {
     name: 'database.json',
@@ -374,14 +376,16 @@ export async function performSyncMerge(currentToken: string, folderId: string) {
   const localMutations = await db.mutations.toArray();
   const localPackages = await db.packages.toArray();
   const localSettings = await db.settings.toArray();
+  const localLoans = await db.loans.toArray();
 
   const mergedAssets = mergeArrays(localAssets, remoteData.assets || []);
   const mergedTransactions = mergeArrays(localTransactions, remoteData.transactions || []);
   
   const sheetMutations = await fetchMutationsFromSpreadsheet(currentToken, folderId);
-  const allRemoteMutations = mergeArrays(remoteData.mutations || [], sheetMutations);
-  const mergedMutations = mergeArrays(localMutations, allRemoteMutations);
+  // Only take from spreadsheet, ignore database.json
+  const mergedMutations = mergeArrays(localMutations, sheetMutations);
   const mergedPackages = mergeArrays(localPackages, remoteData.packages || []);
+  const mergedLoans = mergeArrays(localLoans, remoteData.loans || []);
   
   const mapSettings = new Map();
   (remoteData.settings || []).forEach((r: any) => mapSettings.set(r.key, r));
@@ -401,7 +405,7 @@ export async function performSyncMerge(currentToken: string, folderId: string) {
   const mergedSettings = Array.from(mapSettings.values());
 
   // 3. Save to local DB
-  await db.transaction('rw', [db.assets, db.transactions, db.mutations, db.packages, db.settings], async () => {
+  await db.transaction('rw', [db.assets, db.transactions, db.mutations, db.packages, db.settings, db.loans], async () => {
     await db.assets.clear();
     if (mergedAssets.length) await db.assets.bulkAdd(mergedAssets);
     
@@ -416,17 +420,22 @@ export async function performSyncMerge(currentToken: string, folderId: string) {
 
     await db.settings.clear();
     if (mergedSettings.length) await db.settings.bulkAdd(mergedSettings);
+    
+    await db.loans.clear();
+    if (mergedLoans.length) await db.loans.bulkAdd(mergedLoans);
   });
 
   // 4. Upload merged back to the same folder
   const mergedDataToUpload = {
     assets: sortStandard(mergedAssets),
     transactions: sortTransactions(mergedTransactions),
-    mutations: sortMutations(mergedMutations),
+    mutations: sortMutations(mergedMutations), // Keep for Spreadsheet export
     packages: sortStandard(mergedPackages),
     settings: mergedSettings,
+    loans: sortStandard(mergedLoans),
   };
-  const jsonString = JSON.stringify(mergedDataToUpload, null, 2);
+  const mergedDataForJson = { ...mergedDataToUpload, mutations: [] }; // Ignore database.json
+  const jsonString = JSON.stringify(mergedDataForJson, null, 2);
   const metadata = { name: 'database.json', mimeType: 'application/json' };
   
   const form = new FormData();

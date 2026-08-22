@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, RefreshCw, Wallet, Settings, Camera, Layers, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Package, RefreshCw, Wallet, Settings, Camera, Layers, ChevronLeft, ChevronRight, HandCoins } from 'lucide-react';
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
@@ -11,6 +11,7 @@ const navItems = [
   { to: '/packages', icon: Layers, label: 'Packages' },
   { to: '/transactions', icon: RefreshCw, label: 'Rentals' },
   { to: '/mutations', icon: Wallet, label: 'Cash-Flow' },
+  { to: '/loans', icon: HandCoins, label: 'Loans' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
