@@ -1,0 +1,10 @@
+{
+  "name": "SoreAja Rental App",
+  "description": "Digicam Rental Management App with local storage and Google Workspace sync.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
