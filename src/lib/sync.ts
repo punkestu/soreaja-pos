@@ -38,6 +38,105 @@ export async function uploadPublicImage(accessToken: string, fileBlob: Blob, fil
   return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
 }
 
+
+
+async function fetchMutationsFromSpreadsheet(currentToken: string, folderId: string) {
+  let sheetQuery = encodeURIComponent(`name='Cash Flow - SoreAja' and '${folderId}' in parents and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
+  const sheetSearchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${sheetQuery}&fields=files(id)`, {
+    headers: { Authorization: `Bearer ${currentToken}` }
+  });
+  const sheetSearchData = await sheetSearchRes.json();
+  if (!sheetSearchData.files || sheetSearchData.files.length === 0) return [];
+  
+  const sheetId = sheetSearchData.files[0].id;
+  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1!A1:Z`, {
+    headers: { Authorization: `Bearer ${currentToken}` }
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  if (!data.values || data.values.length <= 1) return [];
+  
+  const sheetMutations: any[] = [];
+  data.values.slice(1).forEach((row: any[]) => {
+    const [id, type, source, location, amountStr, description, dateStr, lastUpdatedStr] = row;
+    if (id) {
+      sheetMutations.push({
+        id,
+        type: type || 'income',
+        source: source || '',
+        location: location || '',
+        amount: Number(amountStr) || 0,
+        description: description || '',
+        timestamp: dateStr ? new Date(dateStr).getTime() : Date.now(),
+        last_updated: lastUpdatedStr ? new Date(lastUpdatedStr).getTime() : Date.now()
+      });
+    }
+  });
+  return sheetMutations;
+}
+
+async function exportToSpreadsheet(currentToken: string, folderId: string, title: string, headers: string[], rowMapper: (item: any) => any[], dataArray: any[]) {
+  let sheetQuery = encodeURIComponent(`name='${title}' and '${folderId}' in parents and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
+  const sheetSearchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${sheetQuery}&fields=files(id)`, {
+    headers: { Authorization: `Bearer ${currentToken}` }
+  });
+  const sheetSearchData = await sheetSearchRes.json();
+  
+  let sheetId;
+  if (sheetSearchData.files && sheetSearchData.files.length > 0) {
+    sheetId = sheetSearchData.files[0].id;
+  } else {
+    const createSheetRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${currentToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ properties: { title } })
+    });
+    const createSheetData = await createSheetRes.json();
+    sheetId = createSheetData.spreadsheetId;
+    
+    await fetch(`https://www.googleapis.com/drive/v3/files/${sheetId}?addParents=${folderId}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${currentToken}` }
+    });
+  }
+
+  const valueData = [headers];
+  dataArray.forEach(item => {
+    valueData.push(rowMapper(item));
+  });
+
+  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1!A1:Z:clear`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${currentToken}` }
+  }).catch(() => {
+     fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Mutations!A1:Z:clear`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${currentToken}` }
+     }).catch(() => {});
+  });
+
+  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1!A1?valueInputOption=USER_ENTERED`, {
+    method: 'PUT',
+    headers: { 
+       Authorization: `Bearer ${currentToken}`,
+       'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ values: valueData })
+  }).catch(async () => {
+     await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Mutations!A1?valueInputOption=USER_ENTERED`, {
+        method: 'PUT',
+        headers: { 
+           Authorization: `Bearer ${currentToken}`,
+           'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ values: valueData })
+     }).catch(() => {});
+  });
+}
+
 export async function getOrCreateFolder(accessToken: string, folderName: string, parentId?: string) {
   let query = `mimeType='application/vnd.google-apps.folder' and name='${folderName}' and trashed=false`;
   if (parentId) query += ` and '${parentId}' in parents`;
@@ -170,88 +269,24 @@ export async function performSyncUp(currentToken: string) {
   if (!driveRes.ok) throw new Error('Failed to upload to Drive');
 
   // Export Cash-flow to Spreadsheet
-  const rows: any[] = [
-    { values: [
-      { userEnteredValue: { stringValue: 'ID' } },
-      { userEnteredValue: { stringValue: 'Type' } },
-      { userEnteredValue: { stringValue: 'Source' } },
-      { userEnteredValue: { stringValue: 'Location' } },
-      { userEnteredValue: { stringValue: 'Amount' } },
-      { userEnteredValue: { stringValue: 'Description' } },
-      { userEnteredValue: { stringValue: 'Date' } }
-    ]}
-  ];
-  data.mutations.forEach((m: any) => {
-    rows.push({
-      values: [
-        { userEnteredValue: { stringValue: m.id } },
-        { userEnteredValue: { stringValue: m.type } },
-        { userEnteredValue: { stringValue: m.source } },
-        { userEnteredValue: { stringValue: m.location } },
-        { userEnteredValue: { numberValue: m.amount } },
-        { userEnteredValue: { stringValue: m.description } },
-        { userEnteredValue: { stringValue: new Date(m.timestamp).toLocaleString() } }
-      ]
-    });
-  });
+  await exportToSpreadsheet(
+    currentToken, 
+    sessionFolderId, 
+    'Cash Flow - SoreAja', 
+    ['ID', 'Type', 'Source', 'Location', 'Amount', 'Description', 'Date', 'Last Updated'],
+    (m: any) => [m.id, m.type, m.source, m.location, m.amount, m.description, new Date(m.timestamp).toLocaleString(), m.last_updated ? new Date(m.last_updated).toLocaleString() : new Date(m.timestamp).toLocaleString()],
+    data.mutations
+  );
 
-  let sheetQuery = encodeURIComponent(`name='Cash Flow - SoreAja' and '${sessionFolderId}' in parents and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
-  const sheetSearchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${sheetQuery}&fields=files(id)`, {
-    headers: { Authorization: `Bearer ${currentToken}` }
-  });
-  const sheetSearchData = await sheetSearchRes.json();
-  
-  let sheetId;
-  if (sheetSearchData.files && sheetSearchData.files.length > 0) {
-    sheetId = sheetSearchData.files[0].id;
-  } else {
-    const createSheetRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${currentToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        properties: { title: 'Cash Flow - SoreAja' }
-      })
-    });
-    const createSheetData = await createSheetRes.json();
-    sheetId = createSheetData.spreadsheetId;
-    
-    await fetch(`https://www.googleapis.com/drive/v3/files/${sheetId}?addParents=${sessionFolderId}`, {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${currentToken}` }
-    });
-  }
-
-  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1!A1:Z:clear`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${currentToken}` }
-  });
-
-  const valueData = [
-    ['ID', 'Type', 'Source', 'Location', 'Amount', 'Description', 'Date']
-  ];
-  data.mutations.forEach((m: any) => {
-    valueData.push([
-      m.id,
-      m.type,
-      m.source,
-      m.location,
-      m.amount,
-      m.description,
-      new Date(m.timestamp).toLocaleString()
-    ]);
-  });
-  
-  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1!A1?valueInputOption=USER_ENTERED`, {
-    method: 'PUT',
-    headers: {
-      Authorization: `Bearer ${currentToken}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ values: valueData })
-  });
+  // Export Rentals to Spreadsheet
+  await exportToSpreadsheet(
+    currentToken, 
+    sessionFolderId, 
+    'Rentals - SoreAja', 
+    ['ID', 'Customer Name', 'Status', 'Asset IDs', 'Start Date', 'End Date', 'Total Price', 'Notes'],
+    (t: any) => [t.id, t.customer_name, t.status, t.asset_ids ? t.asset_ids.join(', ') : '', new Date(t.start_date).toLocaleString(), new Date(t.end_date).toLocaleString(), t.total_price, t.notes || ''],
+    data.transactions
+  );
 
   return sessionFolderId;
 }
@@ -342,7 +377,10 @@ export async function performSyncMerge(currentToken: string, folderId: string) {
 
   const mergedAssets = mergeArrays(localAssets, remoteData.assets || []);
   const mergedTransactions = mergeArrays(localTransactions, remoteData.transactions || []);
-  const mergedMutations = mergeArrays(localMutations, remoteData.mutations || []);
+  
+  const sheetMutations = await fetchMutationsFromSpreadsheet(currentToken, folderId);
+  const allRemoteMutations = mergeArrays(remoteData.mutations || [], sheetMutations);
+  const mergedMutations = mergeArrays(localMutations, allRemoteMutations);
   const mergedPackages = mergeArrays(localPackages, remoteData.packages || []);
   
   const mapSettings = new Map();
@@ -405,56 +443,21 @@ export async function performSyncMerge(currentToken: string, folderId: string) {
   await uploadImagesToDrive(currentToken, folderId);
 
   // 6. Update spreadsheet
-  let sheetQuery = encodeURIComponent(`name='Cash Flow - SoreAja' and '${folderId}' in parents and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
-  const sheetSearchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${sheetQuery}&fields=files(id)`, {
-    headers: { Authorization: `Bearer ${currentToken}` }
-  });
-  const sheetSearchData = await sheetSearchRes.json();
-  
-  if (sheetSearchData.files && sheetSearchData.files.length > 0) {
-    const sheetId = sheetSearchData.files[0].id;
-    
-    const valueData = [
-      ['ID', 'Type', 'Source', 'Location', 'Amount', 'Description', 'Date']
-    ];
-    mergedDataToUpload.mutations.forEach((m: any) => {
-      valueData.push([
-        m.id,
-        m.type,
-        m.source,
-        m.location,
-        m.amount,
-        m.description,
-        new Date(m.timestamp).toLocaleString()
-      ]);
-    });
-    
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Mutations!A1:Z:clear`, { 
-       method: 'POST', 
-       headers: { Authorization: `Bearer ${currentToken}` }
-    }).catch(() => {
-       fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1!A1:Z:clear`, { 
-         method: 'POST', 
-         headers: { Authorization: `Bearer ${currentToken}` }
-       });
-    });
-    
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1!A1?valueInputOption=USER_ENTERED`, { 
-       method: 'PUT', 
-       headers: { 
-          Authorization: `Bearer ${currentToken}`,
-         'Content-Type': 'application/json'
-       },
-       body: JSON.stringify({ values: valueData })
-    }).catch(async () => {
-       await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Mutations!A1?valueInputOption=USER_ENTERED`, { 
-         method: 'PUT', 
-         headers: { 
-            Authorization: `Bearer ${currentToken}`,
-           'Content-Type': 'application/json'
-         },
-         body: JSON.stringify({ values: valueData })
-      });
-    });
-  }
+  await exportToSpreadsheet(
+    currentToken, 
+    folderId, 
+    'Cash Flow - SoreAja', 
+    ['ID', 'Type', 'Source', 'Location', 'Amount', 'Description', 'Date', 'Last Updated'],
+    (m: any) => [m.id, m.type, m.source, m.location, m.amount, m.description, new Date(m.timestamp).toLocaleString(), m.last_updated ? new Date(m.last_updated).toLocaleString() : new Date(m.timestamp).toLocaleString()],
+    mergedDataToUpload.mutations
+  );
+
+  await exportToSpreadsheet(
+    currentToken, 
+    folderId, 
+    'Rentals - SoreAja', 
+    ['ID', 'Customer Name', 'Status', 'Asset IDs', 'Start Date', 'End Date', 'Total Price', 'Notes'],
+    (t: any) => [t.id, t.customer_name, t.status, t.asset_ids ? t.asset_ids.join(', ') : '', new Date(t.start_date).toLocaleString(), new Date(t.end_date).toLocaleString(), t.total_price, t.notes || ''],
+    mergedDataToUpload.transactions
+  );
 }
