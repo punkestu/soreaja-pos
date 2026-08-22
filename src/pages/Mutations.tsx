@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { ArrowDownRight, ArrowUpRight, Plus, Wallet } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Plus, Wallet, Copy, Undo2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { CurrencyInput } from '../components/CurrencyInput';
 
@@ -16,6 +16,7 @@ export function Mutations() {
   const [amount, setAmount] = useState(0);
   const [flowDirection, setFlowDirection] = useState<'debit' | 'credit'>('debit');
   const [type, setType] = useState('maintenance');
+  const [confirmingCorrection, setConfirmingCorrection] = useState<string | null>(null);
   const [location, setLocation] = useState('cash');
   const [desc, setDesc] = useState('');
   const [source, setSource] = useState('');
@@ -31,6 +32,20 @@ export function Mutations() {
   const uniqueSources = Array.from(new Set(mutations?.map(m => m.source) || []));
   const uniqueLocations = Array.from(new Set(mutations?.map(m => m.location) || []));
   const uniqueTypes = Array.from(new Set(mutations?.map(m => m.type) || []));
+
+  
+  async function handleCorrection(m: any) {
+    await db.mutations.add({
+      id: uuidv4(),
+      type: m.type,
+      source: m.source,
+      location: m.location,
+      amount: -m.amount,
+      description: `Correction for ${m.id}`,
+      timestamp: new Date()
+    });
+    setConfirmingCorrection(null);
+  }
 
   async function handleAdd(e: FormEvent) {
     e.preventDefault();
@@ -151,16 +166,36 @@ export function Mutations() {
                   {m.amount > 0 ? <ArrowDownRight className="w-6 h-6" /> : <ArrowUpRight className="w-6 h-6" />}
                 </div>
                 <div>
-                  <h3 className="font-semibold text-stone-900">{m.description || m.type}</h3>
-                  <div className="flex items-center gap-2 mt-1 text-xs text-stone-500 font-medium">
-                    <span className="uppercase">{m.location}</span>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-stone-900">{m.description || m.type}</h3>
+                    <span className="text-[10px] font-mono bg-stone-100 text-stone-500 px-1.5 py-0.5 rounded flex items-center gap-1 cursor-pointer hover:bg-stone-200 transition-colors" onClick={() => navigator.clipboard.writeText(m.id)} title="Copy ID">
+                      {m.id.substring(0, 8)}... <Copy className="w-3 h-3" />
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1 text-xs text-stone-500 font-medium flex-wrap">
+                    <span className="uppercase px-2 py-0.5 bg-stone-100 rounded-full">{m.location}</span>
+                    <span className="capitalize px-2 py-0.5 bg-stone-100 rounded-full">{m.type.replace('_', ' ')}</span>
+                    <span className="capitalize px-2 py-0.5 bg-stone-100 rounded-full">{m.source}</span>
                     <span>•</span>
                     <span>{format(m.timestamp, 'MMM d, yyyy HH:mm')}</span>
                   </div>
                 </div>
               </div>
-              <div className={`font-bold font-mono text-lg ${m.amount > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                {m.amount > 0 ? '+' : ''}{m.amount.toLocaleString()}
+              <div className="flex items-center gap-4">
+                <div className={`font-bold font-mono text-lg ${m.amount > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {m.amount > 0 ? '+' : ''}{m.amount.toLocaleString()}
+                </div>
+                {confirmingCorrection === m.id ? (
+                  <div className="flex items-center gap-2 bg-red-50 p-1.5 rounded-xl border border-red-100">
+                    <span className="text-xs font-medium text-red-600 px-2">Correct?</span>
+                    <button onClick={() => handleCorrection(m)} className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs font-medium hover:bg-red-700 transition-colors">Yes</button>
+                    <button onClick={() => setConfirmingCorrection(null)} className="px-3 py-1 bg-white border border-stone-200 text-stone-600 rounded-lg text-xs font-medium hover:bg-stone-50 transition-colors">No</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setConfirmingCorrection(m.id)} className="p-2 text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors" title="Correct this mutation">
+                    <Undo2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </li>
           ))}
