@@ -16,11 +16,7 @@ export function Dashboard() {
   
   const mutations = useLiveQuery(async () => {
     const data = await db.mutations.toArray();
-    return data.sort((a, b) => {
-      const dateA = a.last_updated ? new Date(a.last_updated).getTime() : new Date(a.timestamp).getTime();
-      const dateB = b.last_updated ? new Date(b.last_updated).getTime() : new Date(b.timestamp).getTime();
-      return dateB - dateA;
-    }).slice(0, 3);
+    return data.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 3);
   });
 
   const activeRentals = transactions?.filter(t => t.status === 'active') || [];

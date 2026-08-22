@@ -7,16 +7,19 @@ import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 
 export function Transactions() {
-  const transactions = useLiveQuery(() => db.transactions.toArray());
+  const transactions = useLiveQuery(async () => {
+    const data = await db.transactions.toArray();
+    return data.sort((a, b) => {
+      const dateA = a.last_updated ? new Date(a.last_updated).getTime() : new Date(a.start_date).getTime();
+      const dateB = b.last_updated ? new Date(b.last_updated).getTime() : new Date(b.start_date).getTime();
+      return dateB - dateA;
+    });
+  });
   const [search, setSearch] = useState('');
 
   const filtered = transactions?.filter(t => 
     t.customer_name.toLowerCase().includes(search.toLowerCase())
-  ).sort((a, b) => {
-    const dateA = a.last_updated ? new Date(a.last_updated).getTime() : new Date(a.start_date).getTime();
-    const dateB = b.last_updated ? new Date(b.last_updated).getTime() : new Date(b.start_date).getTime();
-    return dateB - dateA;
-  });
+  );
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8 pb-24 md:pb-10">
