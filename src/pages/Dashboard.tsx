@@ -88,7 +88,10 @@ export function Dashboard() {
     const assetCounts: Record<string, number> = {};
     transactions?.filter(t => new Date(t.start_date) >= startDate).forEach(t => {
       t.items.forEach(item => {
-        assetCounts[item.asset_id] = (assetCounts[item.asset_id] || 0) + item.qty;
+        const asset = assets?.find(a => a.id === item.asset_id);
+        if (asset?.type === 'camera') {
+          assetCounts[item.asset_id] = (assetCounts[item.asset_id] || 0) + item.qty;
+        }
       });
     });
 
@@ -196,7 +199,7 @@ export function Dashboard() {
           </div>
 
           <div>
-            <h3 className="text-sm font-medium text-stone-500 mb-4">Top Assets (Period)</h3>
+            <h3 className="text-sm font-medium text-stone-500 mb-4">Top Cameras (Period)</h3>
             {topAssets.length > 0 ? (
               <div className="flex flex-col items-center">
                 <div className="h-[180px] w-full mb-4">
