@@ -1,3 +1,4 @@
+import { triggerAutoSync } from '../lib/sync';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';

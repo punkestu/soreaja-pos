@@ -14,6 +14,7 @@ import { TransactionDetail } from './pages/TransactionDetail';
 import { Mutations } from './pages/Mutations';
 import { Loans } from './pages/Loans';
 import { Settings } from './pages/Settings';
+import { Docs } from './pages/Docs';
 
 export default function App() {
   return (
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="mutations" element={<Mutations />} />
           <Route path="loans" element={<Loans />} />
                               <Route path="settings" element={<Settings />} />
+          <Route path="docs" element={<Docs />} />
         </Route>
       </Routes>
     </BrowserRouter>

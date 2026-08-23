@@ -1,3 +1,4 @@
+import { triggerAutoSync } from '../lib/sync';
 import type { FormEvent, ChangeEvent } from 'react';
 import { useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
@@ -117,6 +118,7 @@ export function TransactionDetail() {
         status: 'cancelled',
         cancel_reason: cancelReason
       });
+      triggerAutoSync();
 
       if (refundAmount > 0) {
         await db.mutations.add({
@@ -141,6 +143,7 @@ export function TransactionDetail() {
     await db.transactions.update(tx.id, {
       [`checklists.${phase}.${field}`]: !currentVal
     } as any);
+    triggerAutoSync();
   }
 
   async function handleStatusChange(newStatus: 'active' | 'completed') {
@@ -164,6 +167,7 @@ export function TransactionDetail() {
       }
       await db.transactions.update(tx.id, { status: newStatus });
     });
+    triggerAutoSync();
   }
 
   async function handlePayment(e: FormEvent) {

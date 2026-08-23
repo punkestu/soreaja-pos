@@ -1,3 +1,4 @@
+import { triggerAutoSync } from '../lib/sync';
 import type { FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
@@ -45,6 +46,7 @@ export function Mutations() {
       timestamp: new Date()
     });
     setConfirmingCorrection(null);
+    triggerAutoSync();
   }
 
   async function handleAdd(e: FormEvent) {
@@ -60,6 +62,7 @@ export function Mutations() {
       description: desc,
       timestamp: new Date()
     });
+    triggerAutoSync();
 
     setAmount(0);
     setDesc('');

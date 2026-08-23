@@ -1,3 +1,4 @@
+import { getAccessToken } from '../auth';
 import { db } from '../db';
 
 export async function uploadPublicImage(accessToken: string, fileBlob: Blob, fileName: string) {
@@ -469,4 +470,27 @@ export async function performSyncMerge(currentToken: string, folderId: string) {
     (t: any) => [t.id, t.customer_name, t.status, t.asset_ids ? t.asset_ids.join(', ') : '', new Date(t.start_date).toLocaleString(), new Date(t.end_date).toLocaleString(), t.total_price, t.notes || ''],
     mergedDataToUpload.transactions
   );
+}
+
+
+
+export async function triggerAutoSync() {
+  try {
+    const token = await getAccessToken();
+    if (!token) return; // Not logged in or no cached token
+    const folderId = localStorage.getItem('sync_folder_id');
+    if (folderId) {
+      await performSyncMerge(token, folderId);
+      await uploadImagesToDrive(token, folderId);
+    } else {
+      const sessionFolderId = await performSyncUp(token);
+      await uploadImagesToDrive(token, sessionFolderId);
+      localStorage.setItem('sync_folder_id', sessionFolderId);
+    }
+    // Update last sync time
+    localStorage.setItem('last_sync', new Date().toLocaleString());
+    window.dispatchEvent(new Event('sync-complete'));
+  } catch (e) {
+    console.error('Auto sync failed', e);
+  }
 }
