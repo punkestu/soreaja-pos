@@ -1,10 +1,11 @@
+import { Link } from 'react-router-dom';
 import { triggerAutoSync } from '../lib/sync';
 import type { FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { ArrowDownRight, ArrowUpRight, Plus, Wallet, Copy, Undo2 } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Plus, Wallet, Copy, Undo2, Link2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { CurrencyInput } from '../components/CurrencyInput';
 
@@ -181,6 +182,15 @@ export function Mutations() {
                     <span className="capitalize px-2 py-0.5 bg-stone-100 rounded-full">{m.source}</span>
                     <span>•</span>
                     <span>{format(m.timestamp, 'MMM d, yyyy HH:mm')}</span>
+                    {m.reference_id && (
+                      <>
+                        <span>•</span>
+                        <Link to={`/transactions/${m.reference_id}`} className="flex items-center gap-1 text-orange-600 hover:text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full transition-colors">
+                          <Link2 className="w-3 h-3" />
+                          Tx: {m.reference_id.substring(0,8)}
+                        </Link>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

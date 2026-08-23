@@ -337,6 +337,25 @@ export function TransactionDetail() {
             <span className="font-semibold text-orange-800">Reason/Notes:</span> <span className="text-orange-700">{tx.financials.notes}</span>
           </div>
         )}
+        
+        {mutations && mutations.length > 0 && (
+          <div className="mt-6 border-t border-stone-200 pt-4">
+            <h3 className="font-semibold text-sm text-stone-800 mb-3">Payment History</h3>
+            <ul className="space-y-2">
+              {mutations.map(m => (
+                <li key={m.id} className="flex justify-between items-center text-sm bg-stone-50 px-3 py-2 rounded-lg">
+                  <div>
+                    <p className="font-medium text-stone-700 capitalize">{m.location} {m.description ? `(${m.description})` : ''}</p>
+                    <p className="text-xs text-stone-500">{new Date(m.timestamp).toLocaleDateString()} {new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                  </div>
+                  <span className={`font-mono font-bold ${m.amount > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {m.amount > 0 ? '+' : ''}Rp {m.amount.toLocaleString()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {/* Checklists */}
