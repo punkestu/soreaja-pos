@@ -8,7 +8,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, Transaction, Mutation, DocImage } from '../db';
 import { v4 as uuidv4 } from 'uuid';
-import { ArrowLeft, CheckCircle2, Circle, Camera, Upload, Trash2, Wallet, ExternalLink, FolderPlus, Edit2, FileText, Printer, X, Download } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Circle, Camera, Upload, Trash2, Wallet, ExternalLink, FolderPlus, Edit2, FileText, Printer, X, Download, RefreshCw } from 'lucide-react';
 import { CurrencyInput } from '../components/CurrencyInput';
 import { initAuth, googleSignIn } from '../auth';
 import { createCustomerFolder } from '../lib/sync';
@@ -62,6 +62,7 @@ export function TransactionDetail() {
   };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadPhaseRef = useRef<'give' | 'take'>('give');
 
   if (!tx || !assets) return <div className="p-10 text-center text-stone-500">Loading or not found...</div>;
 
@@ -211,12 +212,14 @@ export function TransactionDetail() {
       data: blob
     });
 
-    // Assume for 'give' phase if not complete, otherwise 'take'
-    if (tx.status !== 'completed') {
+    if (uploadPhaseRef.current === 'give') {
        await db.transactions.update(tx.id, { 'checklists.give.doc_image_id': imgId });
     } else {
        await db.transactions.update(tx.id, { 'checklists.take.doc_take_image_id': imgId });
     }
+    
+    // Auto-sync so the image is immediately uploaded to Google Drive
+    triggerAutoSync();
   }
 
   async function createFolder() {
@@ -382,12 +385,23 @@ export function TransactionDetail() {
               ))}
               <div className="pt-2">
                 <p className="text-sm font-medium text-stone-700 mb-2">ID Card / Document Photo</p>
-                {tx.checklists.give.doc_image_id ? (
-                  <div className="flex items-center gap-2 text-emerald-600 font-medium text-sm">
-                    <CheckCircle2 className="w-5 h-5" /> Image Saved
+                {tx.checklists.give.doc_gdrive_link ? (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2 text-emerald-600 font-medium text-sm">
+                      <CheckCircle2 className="w-5 h-5" /> Backed Up to GDrive
+                    </div>
+                    <a href={tx.checklists.give.doc_gdrive_link} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                      View Document
+                    </a>
+                  </div>
+                ) : tx.checklists.give.doc_image_id ? (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2 text-amber-600 font-medium text-sm">
+                      <RefreshCw className="w-4 h-4 animate-spin" /> Uploading to Drive...
+                    </div>
                   </div>
                 ) : (
-                  <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 bg-stone-100 hover:bg-stone-200 text-stone-800 px-3 py-2 rounded-xl text-sm font-medium transition-colors">
+                  <button onClick={() => { uploadPhaseRef.current = 'give'; fileInputRef.current?.click(); }} className="flex items-center gap-2 bg-stone-100 hover:bg-stone-200 text-stone-800 px-3 py-2 rounded-xl text-sm font-medium transition-colors">
                     <Camera className="w-4 h-4" /> Take / Upload
                   </button>
                 )}
@@ -411,12 +425,23 @@ export function TransactionDetail() {
               ))}
               <div className="pt-2">
                 <p className="text-sm font-medium text-stone-700 mb-2">Return Condition Photo (Optional)</p>
-                {tx.checklists.take.doc_take_image_id ? (
-                  <div className="flex items-center gap-2 text-emerald-600 font-medium text-sm">
-                    <CheckCircle2 className="w-5 h-5" /> Image Saved
+                {tx.checklists.take.doc_take_gdrive_link ? (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2 text-emerald-600 font-medium text-sm">
+                      <CheckCircle2 className="w-5 h-5" /> Backed Up to GDrive
+                    </div>
+                    <a href={tx.checklists.take.doc_take_gdrive_link} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                      View Document
+                    </a>
+                  </div>
+                ) : tx.checklists.take.doc_take_image_id ? (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2 text-amber-600 font-medium text-sm">
+                      <RefreshCw className="w-4 h-4 animate-spin" /> Uploading to Drive...
+                    </div>
                   </div>
                 ) : (
-                  <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 bg-stone-100 hover:bg-stone-200 text-stone-800 px-3 py-2 rounded-xl text-sm font-medium transition-colors">
+                  <button onClick={() => { uploadPhaseRef.current = 'take'; fileInputRef.current?.click(); }} className="flex items-center gap-2 bg-stone-100 hover:bg-stone-200 text-stone-800 px-3 py-2 rounded-xl text-sm font-medium transition-colors">
                     <Camera className="w-4 h-4" /> Take / Upload
                   </button>
                 )}

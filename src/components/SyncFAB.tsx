@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Save, RefreshCw, X, FolderSync, Plus } from 'lucide-react';
 import { initAuth, googleSignIn } from '../auth';
 import { fetchBackupFolders, performSyncMerge, performSyncUp } from '../lib/sync';
@@ -8,6 +8,17 @@ export function SyncFAB() {
   const [showFolderSelect, setShowFolderSelect] = useState(false);
   const [availableFolders, setAvailableFolders] = useState<any[]>([]);
   const [currentToken, setCurrentToken] = useState<string | null>(null);
+
+
+  useEffect(() => {
+    const onAutoSync = () => {
+      if (syncStatus === 'idle' || syncStatus === 'error') {
+        handleSync();
+      }
+    };
+    window.addEventListener('request-auto-sync', onAutoSync);
+    return () => window.removeEventListener('request-auto-sync', onAutoSync);
+  }, [syncStatus]);
 
   const getToken = async () => {
     let token = null;

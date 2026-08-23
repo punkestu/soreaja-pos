@@ -237,6 +237,13 @@ export async function performSyncUp(currentToken: string) {
     }
   }
 
+  const rootFolderId = await getOrCreateFolder(currentToken, 'SoreAja Backups');
+  const backupId = `Backup - ${new Date().toLocaleString().replace(/[/:,]/g, '-')}`;
+  const sessionFolderId = await getOrCreateFolder(currentToken, backupId, rootFolderId);
+
+  // Upload images first so transactions have GDrive IDs
+  await uploadImagesToDrive(currentToken, sessionFolderId);
+  
   // Gather data
   const data = {
     assets: sortStandard(await db.assets.toArray()),
@@ -246,10 +253,6 @@ export async function performSyncUp(currentToken: string) {
     settings: settings,
     loans: sortStandard(await db.loans.toArray())
   };
-  
-  const rootFolderId = await getOrCreateFolder(currentToken, 'SoreAja Backups');
-  const backupId = `Backup - ${new Date().toLocaleString().replace(/[/:,]/g, '-')}`;
-  const sessionFolderId = await getOrCreateFolder(currentToken, backupId, rootFolderId);
   
   const dataForJson = { ...data, mutations: [] }; // Ignore database.json
   const jsonString = JSON.stringify(dataForJson, null, 2);
@@ -287,8 +290,8 @@ export async function performSyncUp(currentToken: string) {
     currentToken, 
     sessionFolderId, 
     'Rentals - SoreAja', 
-    ['ID', 'Customer Name', 'Status', 'Asset IDs', 'Start Date', 'End Date', 'Total Price', 'Notes'],
-    (t: any) => [t.id, t.customer_name, t.status, t.asset_ids ? t.asset_ids.join(', ') : '', new Date(t.start_date).toLocaleString(), new Date(t.end_date).toLocaleString(), t.total_price, t.notes || ''],
+    ['ID', 'Customer Name', 'Status', 'Asset IDs', 'Start Date', 'End Date', 'Total Price', 'Notes', 'Give Photo Link', 'Take Photo Link'],
+    (t: any) => [t.id, t.customer_name, t.status, t.asset_ids ? t.asset_ids.join(', ') : '', new Date(t.start_date).toLocaleString(), new Date(t.end_date).toLocaleString(), t.total_price, t.notes || '', t.checklists?.give?.doc_gdrive_link || '', t.checklists?.take?.doc_take_gdrive_link || ''],
     data.transactions
   );
 
@@ -301,17 +304,54 @@ export async function uploadImagesToDrive(currentToken: string, sessionFolderId:
   
   const imagesFolderId = await getOrCreateFolder(currentToken, 'Images', sessionFolderId);
   for (const img of images) {
-    if (img.gdrive_id) continue; // Already uploaded
+    if (img.gdrive_id) {
+      // Heal transaction if it missed the link
+      const tx = await db.transactions.get(img.transaction_id);
+      if (tx) {
+        let updated = false;
+        if (tx.checklists.give.doc_image_id === img.id && !tx.checklists.give.doc_gdrive_link) {
+          try {
+            const res = await fetch(`https://www.googleapis.com/drive/v3/files/${img.gdrive_id}?fields=webViewLink`, {
+              headers: { Authorization: `Bearer ${currentToken}` }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              tx.checklists.give.doc_gdrive_id = img.gdrive_id;
+              tx.checklists.give.doc_gdrive_link = data.webViewLink;
+              updated = true;
+            }
+          } catch(e) {}
+        }
+        if (tx.checklists.take.doc_take_image_id === img.id && !tx.checklists.take.doc_take_gdrive_link) {
+          try {
+            const res = await fetch(`https://www.googleapis.com/drive/v3/files/${img.gdrive_id}?fields=webViewLink`, {
+              headers: { Authorization: `Bearer ${currentToken}` }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              tx.checklists.take.doc_take_gdrive_id = img.gdrive_id;
+              tx.checklists.take.doc_take_gdrive_link = data.webViewLink;
+              updated = true;
+            }
+          } catch(e) {}
+        }
+        if (updated) {
+          await db.transactions.put(tx);
+        }
+      }
+      continue;
+    }
+    
     const metadata = {
       name: `${img.transaction_id}_${img.id}.jpg`,
       parents: [imagesFolderId]
     };
     const form = new FormData();
     form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-    form.append('file', img.data);
+    form.append('file', img.data, metadata.name);
 
     try {
-      const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+      const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
         method: 'POST',
         headers: { Authorization: `Bearer ${currentToken}` },
         body: form
@@ -319,6 +359,24 @@ export async function uploadImagesToDrive(currentToken: string, sessionFolderId:
       if (res.ok) {
         const data = await res.json();
         await db.images.update(img.id, { gdrive_id: data.id });
+        
+        const tx = await db.transactions.get(img.transaction_id);
+        if (tx) {
+          let updated = false;
+          if (tx.checklists.give.doc_image_id === img.id) {
+            tx.checklists.give.doc_gdrive_id = data.id;
+            tx.checklists.give.doc_gdrive_link = data.webViewLink;
+            updated = true;
+          }
+          if (tx.checklists.take.doc_take_image_id === img.id) {
+            tx.checklists.take.doc_take_gdrive_id = data.id;
+            tx.checklists.take.doc_take_gdrive_link = data.webViewLink;
+            updated = true;
+          }
+          if (updated) {
+            await db.transactions.put(tx);
+          }
+        }
       }
     } catch(e) { console.error('Image upload failed', e); }
   }
@@ -335,6 +393,9 @@ export async function fetchBackupFolders(currentToken: string) {
 }
 
 export async function performSyncMerge(currentToken: string, folderId: string) {
+  // Upload images first so local transactions have GDrive IDs before merge
+  await uploadImagesToDrive(currentToken, folderId);
+
   // 1. Download database.json
   let qFile = encodeURIComponent(`'${folderId}' in parents and name='database.json' and trashed=false`);
   const fileSearchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${qFile}&fields=files(id)`, {
@@ -449,9 +510,6 @@ export async function performSyncMerge(currentToken: string, folderId: string) {
     headers: { Authorization: `Bearer ${currentToken}` },
     body: form
   });
-  
-  // 5. Images upload
-  await uploadImagesToDrive(currentToken, folderId);
 
   // 6. Update spreadsheet
   await exportToSpreadsheet(
@@ -467,31 +525,14 @@ export async function performSyncMerge(currentToken: string, folderId: string) {
     currentToken, 
     folderId, 
     'Rentals - SoreAja', 
-    ['ID', 'Customer Name', 'Status', 'Asset IDs', 'Start Date', 'End Date', 'Total Price', 'Notes'],
-    (t: any) => [t.id, t.customer_name, t.status, t.asset_ids ? t.asset_ids.join(', ') : '', new Date(t.start_date).toLocaleString(), new Date(t.end_date).toLocaleString(), t.total_price, t.notes || ''],
+    ['ID', 'Customer Name', 'Status', 'Asset IDs', 'Start Date', 'End Date', 'Total Price', 'Notes', 'Give Photo Link', 'Take Photo Link'],
+    (t: any) => [t.id, t.customer_name, t.status, t.asset_ids ? t.asset_ids.join(', ') : '', new Date(t.start_date).toLocaleString(), new Date(t.end_date).toLocaleString(), t.total_price, t.notes || '', t.checklists?.give?.doc_gdrive_link || '', t.checklists?.take?.doc_take_gdrive_link || ''],
     mergedDataToUpload.transactions
   );
 }
 
 
 
-export async function triggerAutoSync() {
-  try {
-    const token = await getAccessToken();
-    if (!token) return; // Not logged in or no cached token
-    const folderId = localStorage.getItem('sync_folder_id');
-    if (folderId) {
-      await performSyncMerge(token, folderId);
-      await uploadImagesToDrive(token, folderId);
-    } else {
-      const sessionFolderId = await performSyncUp(token);
-      await uploadImagesToDrive(token, sessionFolderId);
-      localStorage.setItem('sync_folder_id', sessionFolderId);
-    }
-    // Update last sync time
-    localStorage.setItem('last_sync', new Date().toLocaleString());
-    window.dispatchEvent(new Event('sync-complete'));
-  } catch (e) {
-    console.error('Auto sync failed', e);
-  }
+export function triggerAutoSync() {
+  window.dispatchEvent(new Event('request-auto-sync'));
 }

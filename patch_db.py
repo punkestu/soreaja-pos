@@ -3,43 +3,28 @@ import re
 with open('src/db.ts', 'r') as f:
     content = f.read()
 
-loan_interface = """
-export interface LoanPayment {
-  id: string;
-  amount: number;
-  payer: string;
-  timestamp: Date;
-  mutation_id: string;
-}
+old_give = """      id_card_taken: boolean;
+      doc_image_id?: string;
+      tutorial_camera: boolean;"""
 
-export interface Loan {
-  id: string;
-  borrower: string;
-  reason: string;
-  amount: number;
-  status: 'active' | 'paid';
-  payments: LoanPayment[];
-  wallet: string;
-  mutation_id: string;
-  timestamp: Date;
-  last_updated?: Date;
-}
-"""
+new_give = """      id_card_taken: boolean;
+      doc_image_id?: string;
+      doc_gdrive_id?: string;
+      doc_gdrive_link?: string;
+      tutorial_camera: boolean;"""
+content = content.replace(old_give, new_give)
 
-content = content.replace("export interface Asset", loan_interface + "\nexport interface Asset")
+old_take = """      items_checked: boolean;
+      doc_take_image_id?: string;
+      gdrive_upload_needed: boolean;"""
 
-db_type_pattern = r"(export const db = new Dexie\('SoreAjaDatabase'\) as Dexie & \{.*?)(\s*\};\n)"
-db_type_replacement = r"\1\n  loans: EntityTable<Loan, 'id'>;\2"
-content = re.sub(db_type_pattern, db_type_replacement, content, flags=re.DOTALL)
-
-db_version_pattern = r"(db\.version\(3\)\.stores\(\{.*?)(\}\);)"
-db_version_replacement = r"\1\n  loans: 'id, borrower, status, timestamp',\2"
-content = re.sub(db_version_pattern, db_version_replacement, content, flags=re.DOTALL)
-
-db_hooks_pattern = r"\['assets', 'transactions', 'mutations', 'images', 'packages'\]"
-db_hooks_replacement = r"['assets', 'transactions', 'mutations', 'images', 'packages', 'loans']"
-content = content.replace(db_hooks_pattern, db_hooks_replacement)
+new_take = """      items_checked: boolean;
+      doc_take_image_id?: string;
+      doc_take_gdrive_id?: string;
+      doc_take_gdrive_link?: string;
+      gdrive_upload_needed: boolean;"""
+content = content.replace(old_take, new_take)
 
 with open('src/db.ts', 'w') as f:
     f.write(content)
-print("Updated db.ts")
+print("Patched db.ts")

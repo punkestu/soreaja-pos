@@ -63,6 +63,8 @@ export interface Transaction {
       payment_fulfilled: boolean;
       id_card_taken: boolean;
       doc_image_id?: string;
+      doc_gdrive_id?: string;
+      doc_gdrive_link?: string;
       tutorial_camera: boolean;
       tutorial_card: boolean;
       tutorial_charger: boolean;
@@ -71,6 +73,8 @@ export interface Transaction {
       id_card_returned: boolean;
       items_checked: boolean;
       doc_take_image_id?: string;
+      doc_take_gdrive_id?: string;
+      doc_take_gdrive_link?: string;
       gdrive_upload_needed: boolean;
       gdrive_uploaded: boolean;
     };
