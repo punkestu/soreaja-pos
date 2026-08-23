@@ -533,6 +533,11 @@ export async function performSyncMerge(currentToken: string, folderId: string) {
 
 
 
-export function triggerAutoSync() {
-  window.dispatchEvent(new Event('request-auto-sync'));
+let autoSyncTimeout: ReturnType<typeof setTimeout> | null = null;
+
+export function triggerAutoSync(debounceMs = 3000) {
+  if (autoSyncTimeout) clearTimeout(autoSyncTimeout);
+  autoSyncTimeout = setTimeout(() => {
+    window.dispatchEvent(new Event('request-auto-sync'));
+  }, debounceMs);
 }
