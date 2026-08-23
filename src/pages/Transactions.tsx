@@ -80,7 +80,7 @@ export function Transactions() {
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-3">
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <span className="text-sm text-stone-500 font-medium">Start:</span>
+              <span className="text-sm text-stone-500 font-medium">From:</span>
               <input 
                 type="date"
                 value={startDateFilter}
@@ -89,7 +89,7 @@ export function Transactions() {
               />
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <span className="text-sm text-stone-500 font-medium">End:</span>
+              <span className="text-sm text-stone-500 font-medium">To:</span>
               <input 
                 type="date"
                 value={endDateFilter}

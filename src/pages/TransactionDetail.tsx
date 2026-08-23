@@ -8,7 +8,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, Transaction, Mutation, DocImage } from '../db';
 import { v4 as uuidv4 } from 'uuid';
-import { ArrowLeft, CheckCircle2, Circle, Camera, Upload, Trash2, Wallet, ExternalLink, FolderPlus, Edit2, FileText, Printer, X, Download, RefreshCw } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Circle, Camera, Upload, Trash2, Wallet, ExternalLink, FolderPlus, Edit2, FileText, Printer, X, Download, RefreshCw, MoreVertical } from 'lucide-react';
 import { CurrencyInput } from '../components/CurrencyInput';
 import { initAuth, googleSignIn } from '../auth';
 import { createCustomerFolder } from '../lib/sync';
@@ -41,6 +41,7 @@ export function TransactionDetail() {
   const [editTakeMethod, setEditTakeMethod] = useState<'self_pickup' | 'antar'>('self_pickup');
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
   
   const isInIframe = window.self !== window.top;
@@ -242,18 +243,19 @@ export function TransactionDetail() {
   return (
     <>
     <div className="p-6 md:p-10 max-w-3xl mx-auto space-y-8 pb-24 md:pb-10 relative print:hidden">
-      <header className="flex items-center justify-between">
+      <header className="flex flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Link to="/transactions" className="p-2 -ml-2 rounded-full hover:bg-stone-200 transition-colors text-stone-600">
+          <Link to="/transactions" className="p-2 -ml-2 rounded-full hover:bg-stone-200 transition-colors text-stone-600 shrink-0">
             <ArrowLeft className="w-6 h-6" />
           </Link>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-stone-900">{tx.customer_name}</h1>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold tracking-tight text-stone-900 truncate">{tx.customer_name}</h1>
             <p className="text-sm text-stone-500 font-medium">Status: <span className="uppercase text-orange-600">{tx.status}</span></p>
-            {tx.status === 'cancelled' && tx.cancel_reason && <p className="text-xs text-red-500 font-medium mt-1">Reason: {tx.cancel_reason}</p>}
+            {tx.status === 'cancelled' && tx.cancel_reason && <p className="text-xs text-red-500 font-medium mt-1 truncate">Reason: {tx.cancel_reason}</p>}
           </div>
         </div>
-        <div className="flex gap-2">
+        {/* Actions - Desktop */}
+        <div className="hidden lg:flex gap-2">
            <button onClick={() => setIsReceiptModalOpen(true)} className="bg-stone-100 text-stone-700 hover:bg-stone-200 px-4 py-2 rounded-xl text-sm font-bold transition-colors flex items-center gap-2">
              <FileText className="w-4 h-4" /> Export
            </button>
@@ -266,6 +268,45 @@ export function TransactionDetail() {
            {tx.status === 'active' && (
              <button onClick={() => handleStatusChange('completed')} className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-bold">Mark Complete (Take)</button>
            )}
+        </div>
+
+        {/* Actions - Mobile Dropdown */}
+        <div className="lg:hidden relative">
+          <button 
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-2 rounded-xl bg-stone-100 text-stone-700 hover:bg-stone-200 transition-colors flex items-center justify-center"
+          >
+            <MoreVertical className="w-5 h-5" />
+          </button>
+          
+          {isMobileMenuOpen && (
+            <>
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={() => setIsMobileMenuOpen(false)} 
+              />
+              <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-stone-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
+               <button onClick={() => { setIsMobileMenuOpen(false); setIsReceiptModalOpen(true); }} className="w-full text-left px-4 py-3 text-sm font-bold text-stone-700 hover:bg-stone-50 flex items-center gap-2 border-b border-stone-100">
+                 <FileText className="w-4 h-4" /> Export
+               </button>
+               {tx.status === 'booked' && (
+                 <button onClick={() => { setIsMobileMenuOpen(false); handleStatusChange('active'); }} className="w-full text-left px-4 py-3 text-sm font-bold text-blue-600 hover:bg-blue-50 border-b border-stone-100">
+                   Mark Active (Give)
+                 </button>
+               )}
+               {tx.status === 'active' && (
+                 <button onClick={() => { setIsMobileMenuOpen(false); handleStatusChange('completed'); }} className="w-full text-left px-4 py-3 text-sm font-bold text-emerald-600 hover:bg-emerald-50 border-b border-stone-100">
+                   Mark Complete (Take)
+                 </button>
+               )}
+               {tx.status !== 'completed' && tx.status !== 'cancelled' && (
+                 <button onClick={() => { setIsMobileMenuOpen(false); triggerCancelFlow(); }} className="w-full text-left px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 border-b border-stone-100">
+                   Cancel
+                 </button>
+               )}
+            </div>
+            </>
+          )}
         </div>
       </header>
 
