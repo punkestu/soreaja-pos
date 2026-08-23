@@ -19,8 +19,34 @@ const provider = new GoogleAuthProvider();
 provider.addScope('https://www.googleapis.com/auth/drive.file');
 provider.addScope('https://www.googleapis.com/auth/spreadsheets');
 
+const TOKEN_KEY = 'google_access_token_cache';
+
+const getStoredToken = (): string | null => {
+  try {
+    const stored = localStorage.getItem(TOKEN_KEY);
+    if (!stored) return null;
+    const { token, expiresAt } = JSON.parse(stored);
+    if (Date.now() < expiresAt) {
+      return token;
+    }
+    localStorage.removeItem(TOKEN_KEY);
+    return null;
+  } catch (e) {
+    return null;
+  }
+};
+
+const storeToken = (token: string) => {
+  const expiresAt = Date.now() + 55 * 60 * 1000; // 55 minutes
+  localStorage.setItem(TOKEN_KEY, JSON.stringify({ token, expiresAt }));
+};
+
+const clearStoredToken = () => {
+  localStorage.removeItem(TOKEN_KEY);
+};
+
 let isSigningIn = false;
-let cachedAccessToken: string | null = null;
+let cachedAccessToken: string | null = getStoredToken();
 
 export const initAuth = (
   onAuthSuccess?: (user: User, token: string) => void,
@@ -28,6 +54,7 @@ export const initAuth = (
 ) => {
   return onAuthStateChanged(auth, async (user: User | null) => {
     if (user) {
+      cachedAccessToken = getStoredToken();
       if (cachedAccessToken) {
         if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken);
       } else if (!isSigningIn) {
@@ -35,6 +62,7 @@ export const initAuth = (
         if (onAuthFailure) onAuthFailure();
       }
     } else {
+      clearStoredToken();
       cachedAccessToken = null;
       if (onAuthFailure) onAuthFailure();
     }
@@ -51,6 +79,7 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
     }
 
     cachedAccessToken = credential.accessToken;
+    storeToken(cachedAccessToken);
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (error: any) {
     console.error('Sign in error:', error);
@@ -61,10 +90,13 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
 };
 
 export const getAccessToken = async (): Promise<string | null> => {
-  return cachedAccessToken;
+  const token = getStoredToken();
+  if (token) cachedAccessToken = token;
+  return token;
 };
 
 export const logout = async () => {
   await auth.signOut();
+  clearStoredToken();
   cachedAccessToken = null;
 };
