@@ -1,3 +1,4 @@
+import { toTzString } from '../lib/tz';
 import { useState, useEffect } from 'react';
 import { Save, RefreshCw, X, FolderSync, Plus } from 'lucide-react';
 import { initAuth, googleSignIn } from '../auth';
@@ -75,7 +76,7 @@ export function SyncFAB() {
   };
   
   const finishSync = () => {
-      const now = new Date().toLocaleString();
+      const now = toTzString(new Date());
       localStorage.setItem('last_sync', now);
       setSyncStatus('success');
       setTimeout(() => setSyncStatus('idle'), 3000);
@@ -163,7 +164,7 @@ export function SyncFAB() {
                 >
                   <span className="font-semibold text-stone-900">{folder.name}</span>
                   <span className="text-xs text-stone-500">
-                    Created: {new Date(folder.createdTime).toLocaleString()}
+                    Created: {toTzString(folder.createdTime)}
                   </span>
                 </button>
               ))}

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Plus, Search, CalendarClock, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
-import { format } from 'date-fns';
+import { formatTz, parseTz } from '../lib/tz';
 
 export function Transactions() {
   const transactions = useLiveQuery(async () => {
@@ -26,11 +26,11 @@ export function Transactions() {
     let matchesDate = true;
     
     if (startDateFilter) {
-      matchesDate = matchesDate && new Date(t.start_date).getTime() >= new Date(startDateFilter).getTime();
+      const startOfDay = parseTz(startDateFilter + "T00:00");
+      matchesDate = matchesDate && new Date(t.start_date).getTime() >= startOfDay.getTime();
     }
     if (endDateFilter) {
-      const endOfDay = new Date(endDateFilter);
-      endOfDay.setHours(23, 59, 59, 999);
+      const endOfDay = parseTz(endDateFilter + "T23:59:59.999");
       matchesDate = matchesDate && new Date(t.end_date).getTime() <= endOfDay.getTime();
     }
     
@@ -128,7 +128,7 @@ export function Transactions() {
                   <div>
                     <h3 className="font-semibold text-stone-900 text-lg">{t.customer_name}</h3>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mt-1 text-sm text-stone-500">
-                      <span>{format(t.start_date, 'MMM d, yyyy HH:mm')} - {format(t.end_date, 'MMM d, yyyy HH:mm')}</span>
+                      <span>{formatTz(t.start_date, 'MMM d, yyyy HH:mm')} - {formatTz(t.end_date, 'MMM d, yyyy HH:mm')}</span>
                       <span className="hidden sm:inline text-stone-300">•</span>
                       <span>{t.items.reduce((acc, item) => acc + item.qty, 0)} items</span>
                     </div>

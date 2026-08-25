@@ -4,7 +4,7 @@ import type { FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { useState } from 'react';
-import { format } from 'date-fns';
+import { formatTz } from '../lib/tz';
 import { ArrowDownRight, ArrowUpRight, Plus, Wallet, Copy, Undo2, Link2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { CurrencyInput } from '../components/CurrencyInput';
@@ -181,7 +181,7 @@ export function Mutations() {
                     <span className="capitalize px-2 py-0.5 bg-stone-100 rounded-full">{m.type.replace('_', ' ')}</span>
                     <span className="capitalize px-2 py-0.5 bg-stone-100 rounded-full">{m.source}</span>
                     <span className="hidden sm:inline">•</span>
-                    <span className="w-full sm:w-auto mt-1 sm:mt-0">{format(m.timestamp, 'MMM d, yyyy HH:mm')}</span>
+                    <span className="w-full sm:w-auto mt-1 sm:mt-0">{formatTz(m.timestamp, 'MMM d, yyyy HH:mm')}</span>
                     {m.reference_id && (
                       <>
                         <span className="hidden sm:inline">•</span>

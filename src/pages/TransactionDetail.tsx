@@ -1,3 +1,4 @@
+import { toTzString } from '../lib/tz';
 import { triggerAutoSync } from '../lib/sync';
 import type { FormEvent, ChangeEvent } from 'react';
 import { useState, useRef } from 'react';
@@ -332,8 +333,8 @@ export function TransactionDetail() {
           </div>
           <div className="col-span-full">
             <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400 mb-1">Rental Periods</h3>
-            <p className="text-sm text-stone-800"><span className="font-medium text-stone-500">From:</span> {tx.start_date.toLocaleString()}</p>
-            <p className="text-sm text-stone-800 mt-1"><span className="font-medium text-stone-500">To:</span> {tx.end_date.toLocaleString()}</p>
+            <p className="text-sm text-stone-800"><span className="font-medium text-stone-500">From:</span> {tx.start_date ? toTzString(tx.start_date) : ""}</p>
+            <p className="text-sm text-stone-800 mt-1"><span className="font-medium text-stone-500">To:</span> {tx.end_date ? toTzString(tx.end_date) : ""}</p>
           </div>
         </div>
       </div>
@@ -698,7 +699,7 @@ export function TransactionDetail() {
                 </div>
                 <div className="text-right">
                   <p className="text-stone-400 mb-0.5 uppercase tracking-wider text-[10px] font-bold">Date</p>
-                  <p className="font-medium text-stone-800">{new Date().toLocaleString()}</p>
+                  <p className="font-medium text-stone-800">{toTzString(new Date())}</p>
                 </div>
               </div>
             </div>
@@ -712,8 +713,8 @@ export function TransactionDetail() {
               </div>
               <div>
                 <h4 className="font-bold text-stone-400 uppercase text-xs mb-1">Rental Period</h4>
-                <p><span className="text-stone-500">Start:</span> {tx.start_date.toLocaleString()}</p>
-                <p><span className="text-stone-500">End:</span> {tx.end_date.toLocaleString()}</p>
+                <p><span className="text-stone-500">Start:</span> {tx.start_date ? toTzString(tx.start_date) : ""}</p>
+                <p><span className="text-stone-500">End:</span> {tx.end_date ? toTzString(tx.end_date) : ""}</p>
                 <p className="mt-2"><span className="text-stone-500">Delivery:</span> {tx.give_method === 'antar' ? 'Antar (Delivery)' : 'Self Pickup'} <br/> <span className="text-stone-500">Return:</span> {tx.take_method === 'antar' ? 'Jemput (Pickup)' : 'Self Drop-off'}</p>
               </div>
             </div>

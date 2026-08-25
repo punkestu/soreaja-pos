@@ -1,3 +1,4 @@
+import { toTzString } from '../lib/tz';
 import { useState, useEffect } from 'react';
 import { db } from '../db';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -140,7 +141,7 @@ export function Settings() {
       };
       
       const rootFolderId = await getOrCreateFolder(currentToken, 'SoreAja Backups');
-      const backupId = `Backup - ${new Date().toLocaleString().replace(/[/:,]/g, '-')}`;
+      const backupId = `Backup - ${toTzString(new Date()).replace(/[/:,]/g, '-')}`;
       const sessionFolderId = await getOrCreateFolder(currentToken, backupId, rootFolderId);
       
       const jsonString = JSON.stringify(data, null, 2);
@@ -185,7 +186,7 @@ export function Settings() {
             { userEnteredValue: { stringValue: m.location } } as any,
             { userEnteredValue: { numberValue: m.amount } } as any,
             { userEnteredValue: { stringValue: m.description } } as any,
-            { userEnteredValue: { stringValue: new Date(m.timestamp).toLocaleString() } } as any
+            { userEnteredValue: { stringValue: toTzString(m.timestamp) } } as any
           ]
         });
       });
@@ -223,7 +224,7 @@ export function Settings() {
          });
       }
 
-      const now = new Date().toLocaleString();
+      const now = toTzString(new Date());
       setLastSync(now);
       localStorage.setItem('last_sync', now);
       setSyncStatus('success');
@@ -380,7 +381,7 @@ export function Settings() {
               m.location,
               m.amount,
               m.description,
-              new Date(m.timestamp).toLocaleString()
+              toTzString(m.timestamp)
             ]);
           });
           
@@ -400,7 +401,7 @@ export function Settings() {
         }
       }
 
-      const now = new Date().toLocaleString();
+      const now = toTzString(new Date());
       setLastSync(now);
       localStorage.setItem('last_sync', now);
       setSyncStatus('success');
@@ -596,7 +597,7 @@ export function Settings() {
                       <Folder className="w-6 h-6 text-stone-400 shrink-0" />
                       <div className="overflow-hidden">
                         <p className="font-semibold text-stone-800 truncate">{f.name}</p>
-                        <p className="text-xs text-stone-500">{new Date(f.createdTime).toLocaleString()}</p>
+                        <p className="text-xs text-stone-500">{toTzString(f.createdTime)}</p>
                       </div>
                     </div>
                   </button>

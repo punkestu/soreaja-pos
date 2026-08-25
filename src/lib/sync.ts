@@ -1,3 +1,4 @@
+import { toTzString } from './tz';
 import { getAccessToken } from '../auth';
 import { db } from '../db';
 
@@ -238,7 +239,7 @@ export async function performSyncUp(currentToken: string) {
   }
 
   const rootFolderId = await getOrCreateFolder(currentToken, 'SoreAja Backups');
-  const backupId = `Backup - ${new Date().toLocaleString().replace(/[/:,]/g, '-')}`;
+  const backupId = `Backup - ${toTzString(new Date()).replace(/[/:,]/g, '-')}`;
   const sessionFolderId = await getOrCreateFolder(currentToken, backupId, rootFolderId);
 
   // Upload images first so transactions have GDrive IDs
@@ -281,7 +282,7 @@ export async function performSyncUp(currentToken: string) {
     sessionFolderId, 
     'Cash Flow - SoreAja', 
     ['ID', 'Type', 'Source', 'Location', 'Amount', 'Description', 'Date', 'Last Updated', 'Reference ID'],
-    (m: any) => [m.id, m.type, m.source, m.location, m.amount, m.description, new Date(m.timestamp).toLocaleString(), m.last_updated ? new Date(m.last_updated).toLocaleString() : new Date(m.timestamp).toLocaleString(), m.reference_id || ''],
+    (m: any) => [m.id, m.type, m.source, m.location, m.amount, m.description, toTzString(m.timestamp), m.last_updated ? toTzString(m.last_updated) : toTzString(m.timestamp), m.reference_id || ''],
     data.mutations
   );
 
@@ -291,7 +292,7 @@ export async function performSyncUp(currentToken: string) {
     sessionFolderId, 
     'Rentals - SoreAja', 
     ['ID', 'Customer Name', 'Status', 'Asset IDs', 'Start Date', 'End Date', 'Total Price', 'Notes', 'Give Photo Link', 'Take Photo Link'],
-    (t: any) => [t.id, t.customer_name, t.status, t.asset_ids ? t.asset_ids.join(', ') : '', new Date(t.start_date).toLocaleString(), new Date(t.end_date).toLocaleString(), t.total_price, t.notes || '', t.checklists?.give?.doc_gdrive_link || '', t.checklists?.take?.doc_take_gdrive_link || ''],
+    (t: any) => [t.id, t.customer_name, t.status, t.asset_ids ? t.asset_ids.join(', ') : '', toTzString(t.start_date), toTzString(t.end_date), t.total_price, t.notes || '', t.checklists?.give?.doc_gdrive_link || '', t.checklists?.take?.doc_take_gdrive_link || ''],
     data.transactions
   );
 
@@ -517,7 +518,7 @@ export async function performSyncMerge(currentToken: string, folderId: string) {
     folderId, 
     'Cash Flow - SoreAja', 
     ['ID', 'Type', 'Source', 'Location', 'Amount', 'Description', 'Date', 'Last Updated', 'Reference ID'],
-    (m: any) => [m.id, m.type, m.source, m.location, m.amount, m.description, new Date(m.timestamp).toLocaleString(), m.last_updated ? new Date(m.last_updated).toLocaleString() : new Date(m.timestamp).toLocaleString(), m.reference_id || ''],
+    (m: any) => [m.id, m.type, m.source, m.location, m.amount, m.description, toTzString(m.timestamp), m.last_updated ? toTzString(m.last_updated) : toTzString(m.timestamp), m.reference_id || ''],
     mergedDataToUpload.mutations
   );
 
@@ -526,7 +527,7 @@ export async function performSyncMerge(currentToken: string, folderId: string) {
     folderId, 
     'Rentals - SoreAja', 
     ['ID', 'Customer Name', 'Status', 'Asset IDs', 'Start Date', 'End Date', 'Total Price', 'Notes', 'Give Photo Link', 'Take Photo Link'],
-    (t: any) => [t.id, t.customer_name, t.status, t.asset_ids ? t.asset_ids.join(', ') : '', new Date(t.start_date).toLocaleString(), new Date(t.end_date).toLocaleString(), t.total_price, t.notes || '', t.checklists?.give?.doc_gdrive_link || '', t.checklists?.take?.doc_take_gdrive_link || ''],
+    (t: any) => [t.id, t.customer_name, t.status, t.asset_ids ? t.asset_ids.join(', ') : '', toTzString(t.start_date), toTzString(t.end_date), t.total_price, t.notes || '', t.checklists?.give?.doc_gdrive_link || '', t.checklists?.take?.doc_take_gdrive_link || ''],
     mergedDataToUpload.transactions
   );
 }

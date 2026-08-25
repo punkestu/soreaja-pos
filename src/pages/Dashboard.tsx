@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
+import { getJakartaLocal, formatTz } from '../lib/tz';
 import { format, isToday, startOfMonth, subDays, subMonths, startOfYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, isSameDay, isSameWeek, isSameMonth } from 'date-fns';
 import { ArrowUpRight, ArrowDownRight, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -12,8 +13,8 @@ export function Dashboard() {
   const transactions = useLiveQuery(async () => {
     const data = await db.transactions.toArray();
     return data.sort((a, b) => {
-      const dateA = a.last_updated ? new Date(a.last_updated).getTime() : new Date(a.start_date).getTime();
-      const dateB = b.last_updated ? new Date(b.last_updated).getTime() : new Date(b.start_date).getTime();
+      const dateA = a.last_updated ? getJakartaLocal(a.last_updated).getTime() : getJakartaLocal(a.start_date).getTime();
+      const dateB = b.last_updated ? getJakartaLocal(b.last_updated).getTime() : getJakartaLocal(b.start_date).getTime();
       return dateB - dateA;
     });
   });
@@ -21,7 +22,7 @@ export function Dashboard() {
   const allMutations = useLiveQuery(() => db.mutations.toArray());
   const assets = useLiveQuery(() => db.assets.toArray());
 
-  const mutations = allMutations?.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 3) || [];
+  const mutations = allMutations?.sort((a, b) => getJakartaLocal(b.timestamp).getTime() - getJakartaLocal(a.timestamp).getTime()).slice(0, 3) || [];
   
   const activeRentals = transactions?.filter(t => t.status === 'active') || [];
   const todaysPickups = transactions?.filter(t => t.status === 'booked' && isToday(t.start_date)) || [];
@@ -29,7 +30,7 @@ export function Dashboard() {
 
   // Performance Data Memoization to avoid recalculating every render
   const { periodIncome, periodExpense, cashflowData, topAssets } = useMemo(() => {
-    const now = new Date();
+    const now = getJakartaLocal(new Date());
     let startDate = startOfMonth(now);
     let grouping: 'day' | 'week' | 'month' = 'day';
 
@@ -56,7 +57,7 @@ export function Dashboard() {
         break;
     }
 
-    const periodMutations = allMutations?.filter(m => new Date(m.timestamp) >= startDate) || [];
+    const periodMutations = allMutations?.filter(m => getJakartaLocal(m.timestamp) >= startDate) || [];
     
     const income = periodMutations.filter(m => m.amount > 0).reduce((sum, m) => sum + m.amount, 0);
     const expense = Math.abs(periodMutations.filter(m => m.amount < 0).reduce((sum, m) => sum + m.amount, 0));
@@ -68,7 +69,7 @@ export function Dashboard() {
 
     const flowData = timeSteps.map(date => {
       const stepMutations = periodMutations.filter(m => {
-        const mDate = new Date(m.timestamp);
+        const mDate = getJakartaLocal(m.timestamp);
         if (grouping === 'day') return isSameDay(mDate, date);
         if (grouping === 'week') return isSameWeek(mDate, date);
         if (grouping === 'month') return isSameMonth(mDate, date);
@@ -86,7 +87,7 @@ export function Dashboard() {
     });
 
     const assetCounts: Record<string, number> = {};
-    transactions?.filter(t => new Date(t.start_date) >= startDate).forEach(t => {
+    transactions?.filter(t => getJakartaLocal(t.start_date) >= startDate).forEach(t => {
       t.items.forEach(item => {
         const asset = assets?.find(a => a.id === item.asset_id);
         if (asset?.type === 'camera') {
@@ -254,7 +255,7 @@ export function Dashboard() {
                   <Link to={`/transactions/${t.id}`} className="flex justify-between items-center w-full">
                     <div>
                       <p className="font-semibold text-stone-900">{t.customer_name}</p>
-                      <p className="text-xs text-stone-500 mt-0.5">{format(t.start_date, 'MMM d')} - {format(t.end_date, 'MMM d')}</p>
+                      <p className="text-xs text-stone-500 mt-0.5">{formatTz(t.start_date, 'MMM d')} - {formatTz(t.end_date, 'MMM d')}</p>
                     </div>
                     <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest ${
                       t.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :

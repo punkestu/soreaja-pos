@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, Loan } from '../db';
 import { Plus, HandCoins, ArrowRight, X, ArrowDownRight } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import { format } from 'date-fns';
+import { formatTz } from '../lib/tz';
 import { CurrencyInput } from '../components/CurrencyInput';
 
 export function Loans() {
@@ -156,7 +156,7 @@ export function Loans() {
                         From {loan.wallet}
                       </span>
                       <span>•</span>
-                      <span>{format(loan.timestamp, 'MMM d, yyyy')}</span>
+                      <span>{formatTz(loan.timestamp, 'MMM d, yyyy')}</span>
                     </div>
                   </div>
                   <div className="flex flex-col sm:items-end gap-2">
@@ -195,7 +195,7 @@ export function Loans() {
                             </div>
                             <div>
                               <p className="text-sm font-medium text-stone-900">{p.payer}</p>
-                              <p className="text-xs text-stone-500">{format(p.timestamp, 'MMM d, yyyy HH:mm')}</p>
+                              <p className="text-xs text-stone-500">{formatTz(p.timestamp, 'MMM d, yyyy HH:mm')}</p>
                             </div>
                           </div>
                           <p className="font-mono font-bold text-emerald-600">+Rp {p.amount.toLocaleString()}</p>

@@ -1,5 +1,6 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
+import { parseTz, getTzDateInput } from '../lib/tz';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../db';
 import { v4 as uuidv4 } from 'uuid';
@@ -25,8 +26,8 @@ export function NewTransaction() {
   const tmr = new Date();
   tmr.setDate(tmr.getDate() + 1);
 
-  const [startDate, setStartDate] = useState(now.toISOString().slice(0, 16));
-  const [endDate, setEndDate] = useState(tmr.toISOString().slice(0, 16));
+  const [startDate, setStartDate] = useState(getTzDateInput(now));
+  const [endDate, setEndDate] = useState(getTzDateInput(tmr));
   
   const [selectedItems, setSelectedItems] = useState<{asset_id: string, qty: number}[]>([]);
   const [additionalCost, setAdditionalCost] = useState(0);
@@ -41,8 +42,8 @@ export function NewTransaction() {
   }, 0);
 
   // Duration in days (min 1)
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  const start = parseTz(startDate);
+  const end = parseTz(endDate);
   const diffTime = Math.max(0, end.getTime() - start.getTime());
   const rentDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
 
@@ -95,8 +96,8 @@ export function NewTransaction() {
       customer_name: customerName,
       customer_phone: customerPhone || undefined,
       customer_address: customerAddress || undefined,
-      start_date: new Date(startDate),
-      end_date: new Date(endDate),
+      start_date: parseTz(startDate),
+      end_date: parseTz(endDate),
       give_method: giveMethod,
       take_method: takeMethod,
       items: selectedItems,
