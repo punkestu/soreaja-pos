@@ -126,10 +126,10 @@ export function TransactionDetail() {
       if (refundAmount > 0) {
         await db.mutations.add({
           id: uuidv4(),
-          type: 'expense',
+          type: 'out',
           source: tx.customer_name,
           location: 'cash',
-          amount: refundAmount,
+          amount: -Math.abs(refundAmount),
           description: `Refund for cancelled rental: ${cancelReason}`,
           reference_id: tx.id,
           timestamp: new Date()
